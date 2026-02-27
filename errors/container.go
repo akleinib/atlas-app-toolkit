@@ -97,7 +97,7 @@ func (c *Container) Set(target string, code codes.Code, format string, args ...i
 	c.errMessage = fmt.Sprintf(format, args...)
 	c.errSet = true
 
-	c = c.WithDetail(c.errCode, target, c.errMessage)
+	c = c.WithDetail(c.errCode, target, format, args...)
 
 	return c
 }
@@ -171,7 +171,7 @@ func (c *Container) WithFields(fields map[string][]string) *Container {
 	for k, v := range fields {
 		for _, vVal := range v {
 			if vVal != "" && k != "" {
-				c.WithField(k, vVal)
+				c.WithField(k, "%s", vVal)
 				hasDesc = true
 			}
 		}

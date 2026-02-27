@@ -148,7 +148,7 @@ message ExcludedMessage {
 #### Swagger
 
 Optionally you may generate [Swagger](https://swagger.io/) schema from your proto file.
-To do so install [this plugin](https://github.com/grpc-ecosystem/grpc-gateway/tree/master/protoc-gen-swagger).
+To do so install [this plugin](https://github.com/grpc-ecosystem/grpc-gateway/tree/master/protoc-gen-openapiv2).
 
 ```sh
 go get -u github.com/golang/protobuf/protoc-gen-go
@@ -159,8 +159,8 @@ Then invoke it as a plugin for Proto Compiler
 ```sh
 protoc -I/usr/local/include -I. \
   -I$GOPATH/src \
-  -I$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
-  --swagger_out=logtostderr=true:. \
+  -I$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway \
+  --openapiv2_out=logtostderr=true:. \
   path/to/your_service.proto
 ```
 
@@ -189,7 +189,7 @@ message MyMessage {
 };
 ```
 
-For more Swagger options see [this scheme](https://github.com/grpc-ecosystem/grpc-gateway/blob/master/protoc-gen-swagger/options/openapiv2.proto)
+For more Swagger options see [this scheme](https://github.com/grpc-ecosystem/grpc-gateway/blob/master/protoc-gen-openapiv2/options/openapiv2.proto)
 
 See example [contacts app](https://github.com/infobloxopen/atlas-contacts-app/blob/master/pkg/pb/contacts.proto).
 Here is a [generated Swagger schema](https://github.com/infobloxopen/atlas-contacts-app/blob/master/pkg/pb/contacts.swagger.json).

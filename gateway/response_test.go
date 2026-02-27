@@ -13,8 +13,9 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 )
 
 type user struct {
@@ -258,7 +259,12 @@ func TestForwardResponseMessageWithNil(t *testing.T) {
 
 	rw := httptest.NewRecorder()
 	ForwardResponseMessage(
-		ctx, nil, &runtime.JSONPb{OrigName: true, EmitDefaults: true}, rw, nil,
+		ctx, nil, &runtime.JSONPb{
+			MarshalOptions: protojson.MarshalOptions{
+				UseProtoNames:   true,
+				EmitUnpopulated: true,
+			},
+		}, rw, nil,
 		&userWithPtrResult{Results: &userWithPtr{PtrValue: nil}},
 	)
 
@@ -268,8 +274,19 @@ func TestForwardResponseMessageWithNil(t *testing.T) {
 		t.Fatalf("failed to unmarshal JSON response: %s", err)
 	}
 
-	if len(v["Results"].(map[string]interface{})) != 1 {
-		t.Errorf("invalid result item: %+v - expected %+v", v["Results"], map[string]interface{}{})
+	// When UseProtoNames is true, the field name is "results" (proto name) instead of "Results"
+	results, ok := v["results"]
+	if !ok || results == nil {
+		t.Fatalf("results field not found or nil in response: %+v", v)
+	}
+
+	resultsMap, ok := results.(map[string]interface{})
+	if !ok {
+		t.Fatalf("results is not a map[string]interface{}: %T", results)
+	}
+
+	if len(resultsMap) != 1 {
+		t.Errorf("invalid result item: %+v - expected %+v", v["results"], map[string]interface{}{})
 	}
 }
 

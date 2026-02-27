@@ -90,7 +90,10 @@ func NewServerHandler(ops ...GRPCOption) *ServerHandler {
 		op(options)
 	}
 
-	return &ServerHandler{options: options}
+	return &ServerHandler{
+		ServerHandler: ocgrpc.ServerHandler{},
+		options:       options,
+	}
 }
 
 // HandleRPC implements per-RPC tracing and stats instrumentation.

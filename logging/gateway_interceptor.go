@@ -176,7 +176,7 @@ func GatewayLoggingInterceptor(logger *logrus.Logger, opts ...GWLogOption) grpc.
 
 		// print log message with all fields
 		resLogger = resLogger.WithFields(fields)
-		levelLogf(resLogger, cfg.codeToLevel(status.Code(err)), "finished client unary call with code "+status.Code(err).String())
+		levelLogf(resLogger, cfg.codeToLevel(status.Code(err)), "finished client unary call with code %s", status.Code(err).String())
 
 		return
 	}

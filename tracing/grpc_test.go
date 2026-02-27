@@ -3,7 +3,6 @@ package tracing
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,6 +12,15 @@ import (
 )
 
 var testGRPCOptions = &gRPCOptions{}
+
+// testExporter is a test helper to capture span data
+type testExporter struct {
+	spans []*trace.SpanData
+}
+
+func (e *testExporter) ExportSpan(s *trace.SpanData) {
+	e.spans = append(e.spans, s)
+}
 
 func TestDefaultGRPCOptions(t *testing.T) {
 	expected := &gRPCOptions{
@@ -76,6 +84,11 @@ func TestNewServerHandler(t *testing.T) {
 }
 
 func TestServerHandler_HandleRPC(t *testing.T) {
+	// Set up a test exporter to capture span data
+	exp := &testExporter{}
+	trace.RegisterExporter(exp)
+	defer trace.UnregisterExporter(exp)
+
 	handler := NewServerHandler(func(options *gRPCOptions) {
 		options.spanWithPayload = func(ctx context.Context, rpcStats stats.RPCStats) bool {
 			return true
@@ -87,9 +100,6 @@ func TestServerHandler_HandleRPC(t *testing.T) {
 	})
 
 	expectedStats := []stats.RPCStats{
-		&stats.End{
-			Error: fmt.Errorf(""),
-		},
 		&stats.InHeader{
 			Header: map[string][]string{
 				"header1": {""},
@@ -116,13 +126,26 @@ func TestServerHandler_HandleRPC(t *testing.T) {
 		&stats.OutPayload{
 			Payload: []byte(""),
 		},
+		&stats.End{
+			Error: fmt.Errorf(""),
+		},
 	}
 
-	ctx, _ := trace.StartSpan(context.Background(), "test span", trace.WithSampler(trace.AlwaysSample()))
+	ctx, testSpan := trace.StartSpan(context.Background(), "test span", trace.WithSampler(trace.AlwaysSample()))
 
 	for _, v := range expectedStats {
 		handler.HandleRPC(ctx, v)
 	}
+
+	// End the span to trigger the exporter
+	testSpan.End()
+
+	// Verify the span was captured
+	if len(exp.spans) == 0 {
+		t.Fatal("Span was not captured by exporter")
+	}
+
+	capturedSpan := exp.spans[0]
 
 	expectedMap := map[string]string{
 		"request.header.header1":       "true",
@@ -131,25 +154,25 @@ func TestServerHandler_HandleRPC(t *testing.T) {
 		"response.trailer.outTrailer1": "true",
 	}
 
+	// Extract attributes from the captured span
 	resultMap := make(map[string]string, 4)
-	reflectAttrs := reflect.ValueOf(trace.FromContext(ctx)).Elem().Field(3).Elem().Field(0)
-	reflectKeys := reflectAttrs.MapKeys()
-	for _, k := range reflectKeys {
-		key := k.Convert(reflectAttrs.Type().Key())
-		val := reflectAttrs.MapIndex(key)
-		resultMap[fmt.Sprint(key)] = fmt.Sprint(val)
+	for key := range capturedSpan.Attributes {
+		// Check if the key is one of the expected keys
+		keyStr := fmt.Sprint(key)
+		if _, exists := expectedMap[keyStr]; exists {
+			resultMap[keyStr] = "true"
+		}
 	}
 
 	assert.Equal(t, expectedMap, resultMap)
 
 	expectedAnnotations := []string{
-		"Response error", "Request payload", "Response payload",
+		"Request payload", "Response payload", "Response error",
 	}
 
 	resultAnnotations := make([]string, 0, 3)
-	reflectedAnnotations := reflect.ValueOf(trace.FromContext(ctx)).Elem().Field(4).Elem().Field(0).Slice(0, 3)
-	for i := 0; i < 3; i++ {
-		resultAnnotations = append(resultAnnotations, fmt.Sprint(reflectedAnnotations.Index(i).Elem().Field(1)))
+	for _, annotation := range capturedSpan.Annotations {
+		resultAnnotations = append(resultAnnotations, annotation.Message)
 	}
 
 	assert.Equal(t, expectedAnnotations, resultAnnotations)

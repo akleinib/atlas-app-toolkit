@@ -95,7 +95,7 @@ if you want to compare enclosed object with json you are able to write:
 ...?_filter=info.Address=='{"City": "Tacoma", "Country": "USA"}'
 ```
 
-Note: if you decide to use toolkit provided `infoblox.api.Filtering` proto type, then you'll not be able to use [vanilla](https://github.com/grpc-ecosystem/grpc-gateway/tree/master/protoc-gen-swagger) swagger schema generation, since this plugin doesn't work with recursive nature of `infoblox.api.Filtering`.
+Note: if you decide to use toolkit provided `infoblox.api.Filtering` proto type, then you'll not be able to use [vanilla](https://github.com/grpc-ecosystem/grpc-gateway/tree/master/protoc-gen-openapiv2) swagger schema generation, since this plugin doesn't work with recursive nature of `infoblox.api.Filtering`.
 In this case you can use our [fork](https://github.com/infobloxopen/grpc-gateway/tree/atlas-patch/protoc-gen-swagger) which has a fix for this issue. 
 You can also use [atlas-gentool](https://github.com/infobloxopen/atlas-gentool) which contains both versions of the plugin.
 

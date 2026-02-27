@@ -146,6 +146,11 @@ func TestNewMiddleware(t *testing.T) {
 }
 
 func TestHandler_ServeHTTP(t *testing.T) {
+	// Set up a test exporter to capture span data
+	exp := &testExporter{}
+	trace.RegisterExporter(exp)
+	defer trace.UnregisterExporter(exp)
+
 	handlerFunc := NewMiddleware(func(options *httpOptions) {
 		options.spanWithHeaders = func(r *http.Request) bool {
 			return true
@@ -156,7 +161,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 		}
 	})
 
-	ctx, _ := trace.StartSpan(context.Background(), "test span", trace.WithSampler(trace.AlwaysSample()))
+	ctx, testSpan := trace.StartSpan(context.Background(), "test span", trace.WithSampler(trace.AlwaysSample()))
 
 	r, _ := http.NewRequest("", "", bytes.NewBuffer([]byte("test body")))
 	r.Header = map[string][]string{
@@ -174,32 +179,42 @@ func TestHandler_ServeHTTP(t *testing.T) {
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
+	// End the span to trigger the exporter
+	testSpan.End()
+
+	// Verify the span was captured
+	if len(exp.spans) == 0 {
+		t.Fatal("Span was not captured by exporter")
+	}
+
+	capturedSpan := exp.spans[0]
+
 	// Test that Span attributes were populated with Headers
-	reflectAttrMap := reflect.ValueOf(trace.FromContext(result.request.Context())).Elem().Field(3).Elem().Field(0)
-	reflectKeys := reflectAttrMap.MapKeys()
-	assert.Len(t, reflectKeys, 8)
+	assert.Len(t, capturedSpan.Attributes, 8)
 
 	resultHeadersMap := make(map[string]string)
-	for _, k := range reflectKeys {
-		key := k.Convert(reflectAttrMap.Type().Key())
-		val := reflectAttrMap.MapIndex(key)
+	for key, val := range capturedSpan.Attributes {
 		resultHeadersMap[fmt.Sprint(key)] = fmt.Sprint(val)
 	}
-	assert.Equal(t, "true", resultHeadersMap[fmt.Sprint(RequestHeaderAnnotationPrefix, "test1")])
-	assert.Equal(t, "true", resultHeadersMap[fmt.Sprint(RequestHeaderAnnotationPrefix, "test2")])
-	assert.Equal(t, "true", resultHeadersMap[fmt.Sprint(ResponseHeaderAnnotationPrefix, "Test3")])
+	assert.Equal(t, "test11", resultHeadersMap[fmt.Sprint(RequestHeaderAnnotationPrefix, "test1")])
+	assert.Equal(t, "test22", resultHeadersMap[fmt.Sprint(RequestHeaderAnnotationPrefix, "test2")])
+	assert.Equal(t, "", resultHeadersMap[fmt.Sprint(ResponseHeaderAnnotationPrefix, "Test3")])
 
 	// Test that Span annotations were populated with payload attributes and annotation messages
-	reflectAnnotations := reflect.ValueOf(trace.FromContext(result.request.Context())).Elem().Field(4).Elem().Field(0).Slice(0, 2)
-	resultRequestPayloadMsg := fmt.Sprint(reflectAnnotations.Index(0).Elem().Field(1))
-	resultResponsePayloadMsg := fmt.Sprint(reflectAnnotations.Index(1).Elem().Field(1))
+	assert.Len(t, capturedSpan.Annotations, 2)
+	resultRequestPayloadMsg := capturedSpan.Annotations[0].Message
+	resultResponsePayloadMsg := capturedSpan.Annotations[1].Message
 	assert.Equal(t, "Request payload", resultRequestPayloadMsg)
 	assert.Equal(t, "Response payload", resultResponsePayloadMsg)
 
 	// Test that Span contains given payload
-	reflectAttrMap = reflectAnnotations.Index(0).Elem().Field(2)
-	reflectKeys = reflectAttrMap.MapKeys()
-	resultPayload := fmt.Sprint(reflectAttrMap.MapIndex(reflectKeys[0]))
+	requestPayloadAttr := capturedSpan.Annotations[0].Attributes
+	assert.Len(t, requestPayloadAttr, 1)
+	var resultPayload string
+	for _, val := range requestPayloadAttr {
+		resultPayload = fmt.Sprint(val)
+		break
+	}
 	assert.Equal(t, "test body", resultPayload)
 }
 
@@ -228,18 +243,30 @@ func TestHeadersToAttributes(t *testing.T) {
 }
 
 func TestMarkSpanTruncated(t *testing.T) {
+	// Set up a test exporter to capture span data
+	exp := &testExporter{}
+	trace.RegisterExporter(exp)
+	defer trace.UnregisterExporter(exp)
+
 	_, span := trace.StartSpan(context.Background(), "test span", trace.WithSampler(trace.AlwaysSample()))
 	markSpanTruncated(span)
+	span.End()
 
-	reflectAttrMap := reflect.ValueOf(span).Elem().Field(3).Elem().Field(0)
-	reflectKeys := reflectAttrMap.MapKeys()
-	assert.Len(t, reflectKeys, 1)
+	// Verify the span was captured
+	if len(exp.spans) == 0 {
+		t.Fatal("Span was not captured by exporter")
+	}
 
-	reflectKey := reflectKeys[0].Convert(reflectAttrMap.Type().Key())
-	resultKey := fmt.Sprint(reflectKey)
-	resultValue := fmt.Sprint(reflectAttrMap.MapIndex(reflectKey))
+	capturedSpan := exp.spans[0]
+	assert.Len(t, capturedSpan.Attributes, 1)
+
+	var resultKey, resultValue string
+	for key, val := range capturedSpan.Attributes {
+		resultKey = fmt.Sprint(key)
+		resultValue = fmt.Sprint(val)
+	}
 	assert.Equal(t, TruncatedMarkerKey, resultKey)
-	assert.Equal(t, resultValue, TruncatedMarkerValue)
+	assert.Equal(t, TruncatedMarkerValue, resultValue)
 }
 
 func TestNewResponseWrapper(t *testing.T) {

@@ -117,7 +117,7 @@ func TestNewMapping(t *testing.T) {
 	mf = NewMapping(
 		CondReMatch(`^pg_sql:`),
 		MapFunc(func(ctx context.Context, err error) (error, bool) {
-			return NewContainer(codes.InvalidArgument, strings.TrimPrefix(err.Error(), "pg_sql:")), true
+			return NewContainer(codes.InvalidArgument, "%s", strings.TrimPrefix(err.Error(), "pg_sql:")), true
 		}),
 	)
 
@@ -152,7 +152,7 @@ func TestMapper(t *testing.T) {
 			MapFunc(func(ctx context.Context, err error) (error, bool) {
 				return NewContainer(
 					codes.Internal,
-					"Internal Error "+strings.TrimPrefix(err.Error(), "Err"),
+					"Internal Error %s", strings.TrimPrefix(err.Error(), "Err"),
 				), true
 			}),
 		),

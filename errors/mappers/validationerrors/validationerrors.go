@@ -63,7 +63,7 @@ func DefaultMapping() errors.MapFunc {
 		CondValidation(),
 		errors.MapFunc(func(ctx context.Context, err error) (error, bool) {
 			vErr, _ := err.(ValidationError)
-			return errors.NewContainer(codes.InvalidArgument, "Invalid %s: %s", vErr.Field(), vErr.Reason()).WithField(vErr.Field(), vErr.Reason()), true
+			return errors.NewContainer(codes.InvalidArgument, "Invalid %s: %s", vErr.Field(), vErr.Reason()).WithField("%s", vErr.Field(), vErr.Reason()), true
 		}),
 	)
 }

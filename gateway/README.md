@@ -50,7 +50,7 @@ import (
     "context"
 
     "google.golang.org/grpc/metadata"
-    "github.com/grpc-ecosystem/grpc-gateway/runtime"
+    "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 )
 
 func (s *myServiceImpl) MyMethod(ctx context.Context, req *MyRequest) (*MyResponse, error) {
@@ -126,7 +126,7 @@ You may need to modify the HTTP response body returned by the gRPC gateway. For 
 
 By default, an HTTP response returned by the gRPC Gateway doesn't conform to the Infoblox REST API Syntax (e.g. it has no `success` section).
 
-To override this behavior, the gRPC Gateway documentation recommends overwriting `ForwardResponseMessage` and `ForwardResponseStream` functions correspondingly. See [this documentation](https://github.com/grpc-ecosystem/grpc-gateway/wiki/How-to-customize-your-gateway#replace-a-response-forwarder-per-method) for further information.
+To override this behavior, the gRPC Gateway documentation recommends overwriting `ForwardResponseMessage` and `ForwardResponseStream` functions correspondingly. See [this documentation](https://grpc-ecosystem.github.io/grpc-gateway/docs/mapping/customizing_your_gateway/) for further information.
 
 ```go
 import (
@@ -349,7 +349,7 @@ Here's an example that shows how to use [`DefaultProtoErrorHandler`](gateway/err
 
 ```go
 import (
-    "github.com/grpc-ecosystem/grpc-gateway/runtime"
+    "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
     "github.com/infobloxopen/atlas-app-toolkit/gateway"
 
     "github.com/yourrepo/yourapp"
